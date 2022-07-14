@@ -13,6 +13,8 @@ process DRAGEN_BUILDHASHTABLE {
     def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: 'dragen'
     """
+    set -e
+    
     mkdir -p $prefix
 
     /opt/edico/bin/dragen \\
