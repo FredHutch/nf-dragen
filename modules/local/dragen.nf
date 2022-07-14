@@ -2,9 +2,6 @@ process DRAGEN {
     tag "$meta.id"
     label 'dragen'
 
-    secret 'DRAGEN_USERNAME'
-    secret 'DRAGEN_PASSWORD'
-
     input:
     tuple val(meta), path(files_in)
     path index
@@ -41,7 +38,6 @@ process DRAGEN {
         $ref \\
         --output-directory ./ \\
         --output-file-prefix $prefix \\
-        --lic-server=\$DRAGEN_USERNAME:\$DRAGEN_PASSWORD@license.edicogenome.com \\
         $input \\
         $rgid \\
         $rgsm \\
