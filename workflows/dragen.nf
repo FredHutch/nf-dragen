@@ -73,17 +73,13 @@ workflow DRAGEN {
 
     ch_versions = Channel.empty()
 
-    //
-    // SUBWORKFLOW: Read in samplesheet, validate and stage input files
-    //
+    // Check SampleSheet
     INPUT_CHECK (
         ch_input
     )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
-    //
-    // MODULE: Run FastQC
-    //
+    // FASTQC
     if (!params.skip_fastqc) {
         FASTQC (
             INPUT_CHECK.out.reads
@@ -91,62 +87,75 @@ workflow DRAGEN {
         ch_versions = ch_versions.mix(FASTQC.out.versions.first())
     }
 
-    if (!params.skip_dragen) {
+    // FHUTCH DATA PORTAL LOGIC
+    if (!params.hashtable){
 
-        //
-        // MODULE: Generate DRAGEN DNA index
-        //
-        DRAGEN_BUILDHASHTABLE_DNA (
-            ch_fasta
+        if(params.mode == 'RNA'){
+
+            // MODULE: Generate DRAGEN RNA index
+
+            DRAGEN_BUILDHASHTABLE_RNA (
+                ch_fasta
+            )
+            ch_versions = ch_versions.mix(DRAGEN_BUILDHASHTABLE_RNA.out.versions)
+            ch_hashtable = DRAGEN_BUILDHASHTABLE_RNA.out.index
+
+        } else {
+
+            // MODULE: Generate DRAGEN DNA index
+
+            DRAGEN_BUILDHASHTABLE_DNA (
+                ch_fasta
+            )
+            ch_versions = ch_versions.mix(DRAGEN_BUILDHASHTABLE_DNA.out.versions)
+            ch_hashtable = DRAGEN_BUILDHASHTABLE_DNA.out.index
+
+        }
+    } else {
+
+        ch_hashtable = Channel.fromPath(params.hashtable, checkIfExists:true)
+
+    }
+
+    // Hashtables logic done. Run workflow using mode to toggle.
+
+    if(params.mode == 'RNA'){
+
+        // MODULE: Run DRAGEN on RNA samples to generate BAM from FastQ
+
+        DRAGEN_FASTQ_TO_BAM_RNA (
+            INPUT_CHECK.out.reads,
+            ch_hashtable
         )
-        ch_versions = ch_versions.mix(DRAGEN_BUILDHASHTABLE_DNA.out.versions)
+        ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_BAM_RNA.out.versions.first())
 
-        //
-        // MODULE: Generate DRAGEN RNA index
-        //
-        DRAGEN_BUILDHASHTABLE_RNA (
-            ch_fasta
-        )
-        ch_versions = ch_versions.mix(DRAGEN_BUILDHASHTABLE_RNA.out.versions)
+        }else{
 
-        //
         // MODULE: Run DRAGEN on DNA samples to generate BAM from FastQ
-        //
+
         DRAGEN_FASTQ_TO_BAM_DNA (
             INPUT_CHECK.out.reads,
-            DRAGEN_BUILDHASHTABLE_DNA.out.index
+            ch_hashtable
         )
         ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_BAM_DNA.out.versions.first())
 
-        //
         // MODULE: Run DRAGEN on DNA samples to generate VCF from FastQ
-        //
+
         DRAGEN_FASTQ_TO_VCF_DNA (
             INPUT_CHECK.out.reads,
-            DRAGEN_BUILDHASHTABLE_DNA.out.index
+            ch_hashtable
         )
         ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_VCF_DNA.out.versions.first())
-
-        //
-        // MODULE: Run DRAGEN on RNA samples to generate BAM from FastQ
-        //
-        DRAGEN_FASTQ_TO_BAM_RNA (
-            INPUT_CHECK.out.reads,
-            DRAGEN_BUILDHASHTABLE_RNA.out.index
-        )
-        ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_BAM_RNA.out.versions.first())
     }
 
-    //
     // MODULE: Pipeline software reporting
-    //
+
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
 
-    //
     // MODULE: MultiQC
-    //
+
     workflow_summary    = WorkflowDragen.paramsSummaryMultiqc(workflow, summary_params)
     ch_workflow_summary = Channel.value(workflow_summary)
 

@@ -14,7 +14,7 @@ process DRAGEN_BUILDHASHTABLE {
     prefix = task.ext.prefix ?: 'dragen'
     """
     set -e
-    
+
     mkdir -p $prefix
 
     /opt/edico/bin/dragen \\
