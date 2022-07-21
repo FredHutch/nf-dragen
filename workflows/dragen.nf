@@ -39,7 +39,7 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 include { DRAGEN_BUILDHASHTABLE as DRAGEN_BUILDHASHTABLE_DNA } from '../modules/local/dragen_buildhashtable'
 include { DRAGEN_BUILDHASHTABLE as DRAGEN_BUILDHASHTABLE_RNA } from '../modules/local/dragen_buildhashtable'
 include { DRAGEN as DRAGEN_FASTQ_TO_BAM_DNA } from '../modules/local/dragen'
-include { DRAGEN as DRAGEN_FASTQ_TO_VCF_DNA } from '../modules/local/dragen'
+include { DRAGEN as DRAGEN_DNA } from '../modules/local/dragen'
 include { DRAGEN as DRAGEN_FASTQ_TO_BAM_RNA } from '../modules/local/dragen'
 
 //
@@ -133,15 +133,15 @@ workflow DRAGEN {
 
         // MODULE: Run DRAGEN on DNA samples to generate BAM from FastQ
 
-        DRAGEN_FASTQ_TO_BAM_DNA (
-            INPUT_CHECK.out.reads,
-            ch_hashtable
-        )
-        ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_BAM_DNA.out.versions.first())
+        //DRAGEN_FASTQ_TO_BAM_DNA (
+        //    INPUT_CHECK.out.reads,
+        //    ch_hashtable
+        //)
+        //ch_versions = ch_versions.mix(DRAGEN_FASTQ_TO_BAM_DNA.out.versions.first())
 
         // MODULE: Run DRAGEN on DNA samples to generate VCF from FastQ
 
-        DRAGEN_FASTQ_TO_VCF_DNA (
+        DRAGEN_DNA (
             INPUT_CHECK.out.reads,
             ch_hashtable
         )
@@ -165,6 +165,7 @@ workflow DRAGEN {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(DRAGEN_DNA.qc.collect().ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect()

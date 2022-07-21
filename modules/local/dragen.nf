@@ -14,6 +14,7 @@ process DRAGEN {
     tuple val(meta), path("${prefix}.hard-filtered.vcf.gz")    , emit: vcf_filtered, optional:true
     tuple val(meta), path("${prefix}.hard-filtered.vcf.gz.tbi"), emit: tbi_filtered, optional:true
     path  "versions.yml"                                       , emit: versions
+    tuple val(meta), path("${prefix}.*.csv")                   , emit: qc,           optional: true
 
     script:
     def args = task.ext.args ?: ''
@@ -35,9 +36,13 @@ process DRAGEN {
     }
     """
     set -e
-    
+
     /opt/edico/bin/dragen \\
         $ref \\
+        --output-format bam \\
+        --enable-variant-caller true \\
+        --enable-sv true \\
+        --remove-duplicates true \\
         --output-directory ./ \\
         --output-file-prefix $prefix \\
         $input \\
